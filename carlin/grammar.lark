@@ -1,0 +1,65 @@
+start: line+
+
+line: _INDENT statement
+
+statement: tag
+         | comment
+         | code_statement
+         | doctype
+         | plain_text
+
+tag: tag_spec content?
+
+tag_spec: tag_name modifiers? attributes?
+        | modifiers attributes?
+
+tag_name: TAGNAME
+
+modifiers: (class_mod | id_mod)+
+
+class_mod: "." CLASS_NAME
+id_mod: "#" ID_NAME
+
+attributes: "(" attr_list ")"
+
+attr_list: attribute ("," attribute)* ","?
+         | attribute (" " attribute)*
+
+attribute: KEY "=" attr_value
+         | KEY
+
+attr_value: STRING
+          | NUMBER
+          | BOOLEAN
+          | expr
+
+expr: /[^,)]+/
+
+content: " " rest_of_line
+
+rest_of_line: /[^\n]+/
+
+plain_text: /.+/
+
+comment: "//" rest_of_line?
+       | "//- " rest_of_line?
+       | "//-"
+       | "//"
+
+code_statement: "- " /[^\n]+/
+              | "=" " "? /[^\n]+/
+
+doctype: "doctype" " " /[^\n]+/
+
+TAGNAME: /[a-zA-Z][\w:-]*/
+CLASS_NAME: /[\w-]+/
+ID_NAME: /[\w-]+/
+KEY: /[\w:-]+/
+STRING: /'[^']*'/ | /"[^"]*"/
+BOOLEAN: "true" | "false"
+NUMBER: /\d+/
+
+%import common.NEWLINE -> _NEWLINE
+%import common.WS
+%declare _INDENT
+%ignore _NEWLINE
