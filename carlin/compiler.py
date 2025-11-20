@@ -137,6 +137,6 @@ def compile_pug_file(filepath: str, pretty: bool = False) -> str:
     Returns:
         HTML string
     """
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
         source = f.read()
     return compile_pug(source, pretty=pretty)
