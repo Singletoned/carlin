@@ -2,7 +2,7 @@
 
 import re
 from lxml import etree
-from .simple_parser import parse_pug, TagNode, TextNode, CommentNode
+from .simple_parser import parse_pug, TagNode, TextNode, CommentNode, DoctypeNode
 
 
 def is_valid_xml_name(name: str) -> bool:
@@ -16,48 +16,72 @@ def is_valid_xml_name(name: str) -> bool:
     return re.match(pattern, name) is not None
 
 
-def node_to_html(node) -> etree.Element:
-    """Convert a node to an lxml Element."""
+def node_to_html_string(node) -> str:
+    """Convert a node to an HTML string."""
     if isinstance(node, TagNode):
-        # Create element
-        elem = etree.Element(node.name)
+        # Void/self-closing elements in HTML5
+        void_elements = {
+            'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+            'link', 'meta', 'param', 'source', 'track', 'wbr'
+        }
+
+        # Build opening tag
+        tag_parts = [f'<{node.name}']
 
         # Add ID
         if node.id:
-            elem.set('id', node.id)
+            tag_parts.append(f' id="{node.id}"')
 
         # Add classes
         if node.classes:
-            elem.set('class', ' '.join(node.classes))
+            tag_parts.append(f' class="{" ".join(node.classes)}"')
 
         # Add attributes
         for key, value in node.attributes.items():
             # Skip invalid XML attribute names
             if not is_valid_xml_name(key):
                 continue
-            elem.set(key, str(value))
 
-        # Add text content
+            # Boolean attributes (when value equals key name)
+            if value == key:
+                tag_parts.append(f' {key}')
+            else:
+                tag_parts.append(f' {key}="{value}"')
+
+        # Handle self-closing tags or void elements
+        if node.self_closing:
+            tag_parts.append('/>')
+            return ''.join(tag_parts)
+        elif node.name.lower() in void_elements:
+            tag_parts.append('>')
+            return ''.join(tag_parts)
+
+        tag_parts.append('>')
+        opening_tag = ''.join(tag_parts)
+
+        # Add text content and children
+        content_parts = []
         if node.text:
-            elem.text = node.text
+            content_parts.append(node.text)
 
-        # Add children
         for child in node.children:
-            child_elem = node_to_html(child)
-            if child_elem is not None:
-                elem.append(child_elem)
+            child_html = node_to_html_string(child)
+            if child_html:
+                content_parts.append(child_html)
 
-        return elem
+        # Closing tag
+        closing_tag = f'</{node.name}>'
+
+        return opening_tag + ''.join(content_parts) + closing_tag
 
     elif isinstance(node, TextNode):
-        # Text nodes don't create elements - they should be added to parent
-        return None
+        return node.text
 
     elif isinstance(node, CommentNode):
         # For now, ignore comments
-        return None
+        return ''
 
-    return None
+    return ''
 
 
 def compile_pug(source: str, pretty: bool = False) -> str:
@@ -77,10 +101,16 @@ def compile_pug(source: str, pretty: bool = False) -> str:
     # Convert to HTML
     html_parts = []
     for node in nodes:
-        elem = node_to_html(node)
-        if elem is not None:
-            html_str = etree.tostring(elem, encoding='unicode', method='html')
-            html_parts.append(html_str)
+        if isinstance(node, DoctypeNode):
+            # Handle doctype declarations
+            if node.doctype_str == 'html':
+                html_parts.append('<!DOCTYPE html>')
+            else:
+                html_parts.append(f'<!DOCTYPE {node.doctype_str}>')
+        else:
+            html_str = node_to_html_string(node)
+            if html_str:
+                html_parts.append(html_str)
 
     html = ''.join(html_parts)
 

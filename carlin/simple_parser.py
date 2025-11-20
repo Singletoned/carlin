@@ -21,6 +21,7 @@ class TagNode(Node):
     text: Optional[str]
     children: List[Node]
     indent: int
+    self_closing: bool = False
 
 
 @dataclass
@@ -35,6 +36,13 @@ class CommentNode(Node):
     """Represents a comment."""
     text: str
     buffered: bool
+    indent: int
+
+
+@dataclass
+class DoctypeNode(Node):
+    """Represents a doctype declaration."""
+    doctype_str: str
     indent: int
 
 
@@ -100,9 +108,13 @@ class PugParser:
             text = content[2:].strip() if buffered else content[4:].strip()
             return CommentNode(text=text, buffered=buffered, indent=indent)
 
-        # Doctype (ignore for now)
+        # Doctype
         if content.startswith('doctype'):
-            return None
+            doctype_str = content[7:].strip()  # Remove "doctype" prefix
+            if not doctype_str or doctype_str == 'html':
+                # Default to HTML5 doctype
+                doctype_str = 'html'
+            return DoctypeNode(doctype_str=doctype_str, indent=indent)
 
         # Code lines (ignore for now)
         if content.startswith('-') or content.startswith('='):
@@ -119,6 +131,7 @@ class PugParser:
         tag_id = None
         attributes = {}
         text = None
+        self_closing = False
 
         pos = 0
 
@@ -128,6 +141,11 @@ class PugParser:
             if match:
                 name = match.group(1)
                 pos = match.end()
+
+        # Check for self-closing slash after tag name
+        if pos < len(content) and content[pos] == '/':
+            self_closing = True
+            pos += 1
 
         # Parse classes and IDs
         while pos < len(content) and content[pos] in '.#':
@@ -171,7 +189,8 @@ class PugParser:
             id=tag_id,
             text=text,
             children=[],
-            indent=indent
+            indent=indent,
+            self_closing=self_closing
         )
 
     def _parse_attributes(self, attr_str: str) -> Dict[str, str]:
@@ -221,7 +240,15 @@ class PugParser:
                     if '?' in value:
                         value = value.split('?')[1].split(':')[0].strip()
 
-                attributes[key] = value
+                # Skip false, null, undefined values (removes attribute)
+                if value.lower() in ('false', 'null', 'undefined'):
+                    continue
+
+                # Convert true to boolean attribute (value = key)
+                if value.lower() == 'true':
+                    attributes[key] = key
+                else:
+                    attributes[key] = value
             else:
                 # Boolean attribute
                 key = part.strip()
