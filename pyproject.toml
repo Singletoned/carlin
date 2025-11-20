@@ -18,6 +18,9 @@ dev = [
     "pytest>=7.0.0",
 ]
 
+[project.scripts]
+carlin = "carlin.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["carlin*"]

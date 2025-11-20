@@ -4,9 +4,10 @@
 default:
     @just --list
 
-# Install dependencies
+# Install dependencies and CLI tool
 install:
     pip install -r requirements.txt
+    pip install -e .
 
 # Run all tests
 test:
@@ -40,6 +41,18 @@ format:
 # Run the example from README
 example:
     python -c "from carlin import compile_pug; print(compile_pug('div Hello World'))"
+
+# Compile a Pug file to HTML (output to stdout)
+compile file:
+    carlin {{file}}
+
+# Compile a Pug file to HTML file
+compile-to file output:
+    carlin {{file}} -o {{output}}
+
+# Compile with pretty printing
+compile-pretty file:
+    carlin {{file}} --pretty
 
 # Show test statistics
 stats:

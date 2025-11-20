@@ -6,9 +6,22 @@ A Python implementation of PugJS template engine.
 
 ```bash
 pip install -r requirements.txt
+pip install -e .  # Install CLI tool
 ```
 
 ## Usage
+
+### Command Line
+
+Compile a Pug file to HTML:
+
+```bash
+carlin template.pug                    # Output to stdout
+carlin template.pug -o output.html     # Output to file
+carlin template.pug --pretty           # Pretty-print HTML
+```
+
+### Python API
 
 ```python
 from carlin import compile_pug
